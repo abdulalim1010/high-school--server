@@ -71,6 +71,20 @@ app.post('/users', async (req, res) => {
   }
 });
 
+app.put('/users/:email', async (req, res) => {
+  const email = req.params.email;
+  const userData = req.body;
+
+  try {
+    const filter = { email: email };
+    const updateDoc = { $set: userData };
+    const options = { upsert: true };
+    const result = await usersCollection.updateOne(filter, updateDoc, options);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to save user', error: error.message });
+  }
+});
 
 
 // Make Admin
@@ -89,6 +103,20 @@ app.post('/users', async (req, res) => {
       const user = await usersCollection.findOne({ email });
       res.send({ isAdmin: user?.role === 'admin' });
     });
+    app.patch('/users/block/:id', async (req, res) => {
+  const id = req.params.id;
+  const user = await usersCollection.findOne({ _id: new ObjectId(id) });
+
+  const newStatus = user?.status === "blocked" ? "active" : "blocked";
+
+  const result = await usersCollection.updateOne(
+    { _id: new ObjectId(id) },
+    { $set: { status: newStatus } }
+  );
+
+  res.send(result);
+});
+
 
 
 app.get('/teachers', async (req, res) => {

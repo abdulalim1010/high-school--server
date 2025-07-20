@@ -22,7 +22,9 @@ const client = new MongoClient(uri, {
 });
 
 let teachersCollection;
-let usersCollection;
+let usersCollection;;
+let submissionsCollection;
+let galleryCollection;
 
 
 async function run() {
@@ -31,6 +33,10 @@ async function run() {
     const db = client.db('highSchool');
     teachersCollection = db.collection('teachers');
     usersCollection = db.collection('users');
+    articlesCollection = db.collection('articles');
+    submissionsCollection = db.collection("gallery-submissions");
+       galleryCollection = db.collection("gallery");
+
 
     // Ping to confirm connection
     await client.db("admin").command({ ping: 1 });
@@ -54,6 +60,98 @@ app.get('/users', async (req, res) => {
     res.status(500).json({ message: 'Failed to get users', error: err.message });
   }
 });
+//articles
+app.get("/articles", async (req, res) => {
+  const result = await articlesCollection.find().toArray();
+  res.send(result);
+});
+
+
+app.patch("/articles/:id", async (req, res) => {
+  const id = req.params.id;
+  const { status } = req.body;
+  const result = await articlesCollection.updateOne(
+    { _id: new ObjectId(id) },
+    { $set: { status } }
+  );
+  res.send(result);
+});
+
+
+app.delete("/articles/:id", async (req, res) => {
+  const id = req.params.id;
+  const result = await articlesCollection.deleteOne({ _id: new ObjectId(id) });
+  res.send(result);
+});
+//submission
+app.get('/gallery', async (req, res) => {
+  try {
+    const galleryItems = await galleryCollection.find().toArray();
+    res.status(200).json(galleryItems);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch gallery items", error: error.message });
+  }
+});
+
+// submissions collection route
+app.post('/submissions', async (req, res) => {
+  try {
+    const data = req.body;
+    const result = await submissionsCollection.insertOne(data);
+    res.status(201).json({ message: 'Submission received', id: result.insertedId });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to save submission', error: error.message });
+  }
+});
+
+app.get('/submissions', async (req, res) => {
+  try {
+    const submissions = await submissionsCollection.find().toArray();
+    res.status(200).json(submissions);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch submissions', error: error.message });
+  }
+});
+
+app.patch('/submissions/approve/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const submission = await submissionsCollection.findOne({ _id: new ObjectId(id) });
+
+    if (!submission) return res.status(404).json({ message: "Submission not found" });
+
+    await galleryCollection.insertOne({
+      title: submission.remarks || "No Title",
+      imageUrl: submission.image,
+      submittedAt: submission.createdAt,
+      userEmail: submission.userEmail,
+      userName: submission.userName,
+    });
+
+    await submissionsCollection.deleteOne({ _id: new ObjectId(id) });
+
+    res.json({ message: "Submission approved and added to gallery" });
+  } catch (error) {
+    console.error("❌ Approval Error:", error);
+    res.status(500).json({ message: "Failed to approve submission", error: error.message });
+  }
+});
+
+
+
+
+app.delete('/submissions/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const result = await submissionsCollection.deleteOne({ _id: new ObjectId(id) });
+    if (result.deletedCount === 0) return res.status(404).json({ message: "Submission not found" });
+    res.json({ message: "Submission deleted" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to delete submission", error: error.message });
+  }
+});
+
+
 //post user 
 app.post('/users', async (req, res) => {
   try {

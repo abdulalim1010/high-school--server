@@ -36,8 +36,11 @@ async function run() {
     articlesCollection = db.collection('articles');
     submissionsCollection = db.collection("gallery-submissions");
        galleryCollection = db.collection("gallery");
-
-
+ // এখানে ভুল লাইন বদলে নিচের মত করো:
+    await galleryCollection.updateMany(
+      { imageUrl: null },
+      { $set: { imageUrl: "default_image_url_here" } }
+    );
     // Ping to confirm connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
@@ -113,6 +116,7 @@ app.get('/submissions', async (req, res) => {
   }
 });
 
+// Approve Submission and Add to Gallery
 app.patch('/submissions/approve/:id', async (req, res) => {
   try {
     const id = req.params.id;
@@ -120,10 +124,17 @@ app.patch('/submissions/approve/:id', async (req, res) => {
 
     if (!submission) return res.status(404).json({ message: "Submission not found" });
 
+    // Use correct image field
+    const imageUrl = submission.imageUrl || submission.image || null;
+
+    if (!imageUrl) {
+      return res.status(400).json({ message: "Submission has no valid image URL" });
+    }
+
     await galleryCollection.insertOne({
       title: submission.remarks || "No Title",
-      imageUrl: submission.image,
-      submittedAt: submission.createdAt,
+      imageUrl: imageUrl,
+      submittedAt: submission.createdAt || new Date(),
       userEmail: submission.userEmail,
       userName: submission.userName,
     });
@@ -136,6 +147,7 @@ app.patch('/submissions/approve/:id', async (req, res) => {
     res.status(500).json({ message: "Failed to approve submission", error: error.message });
   }
 });
+
 
 
 

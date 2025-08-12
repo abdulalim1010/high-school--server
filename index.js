@@ -25,7 +25,7 @@ let teachersCollection;
 let usersCollection;;
 let submissionsCollection;
 let galleryCollection;
-
+let eventsCollection;
 
 async function run() {
   try {
@@ -35,7 +35,8 @@ async function run() {
     usersCollection = db.collection('users');
     articlesCollection = db.collection('articles');
     submissionsCollection = db.collection("gallery-submissions");
-       galleryCollection = db.collection("gallery");
+    galleryCollection = db.collection("gallery");
+      eventsCollection = db.collection("events");
  // এখানে ভুল লাইন বদলে নিচের মত করো:
     await galleryCollection.updateMany(
       { imageUrl: null },
@@ -63,6 +64,70 @@ app.get('/users', async (req, res) => {
     res.status(500).json({ message: 'Failed to get users', error: err.message });
   }
 });
+// Get all events
+app.get("/events", async (req, res) => {
+  try {
+    const events = await eventsCollection.find().toArray();
+    res.status(200).json(events);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch events", error: error.message });
+  }
+});
+
+// Get single event
+app.get("/events/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    const event = await eventsCollection.findOne({ _id: new ObjectId(id) });
+    if (!event) {
+      return res.status(404).json({ message: "Event not found" });
+    }
+    res.json(event);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch event", error: error.message });
+  }
+});
+
+// Add event
+app.post("/events", async (req, res) => {
+  try {
+    const eventData = req.body;
+    const result = await eventsCollection.insertOne(eventData);
+    res.status(201).json({ message: "Event added", id: result.insertedId });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to add event", error: error.message });
+  }
+});
+
+// Update event
+app.patch("/events/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    const updateData = req.body;
+    const result = await eventsCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: updateData }
+    );
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to update event", error: error.message });
+  }
+});
+
+// Delete event
+app.delete("/events/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    const result = await eventsCollection.deleteOne({ _id: new ObjectId(id) });
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ message: "Event not found" });
+    }
+    res.json({ message: "Event deleted" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to delete event", error: error.message });
+  }
+});
+
 //articles
 app.get("/articles", async (req, res) => {
   const result = await articlesCollection.find().toArray();
